@@ -1,5 +1,6 @@
 {
-    "reader_basics": ["simple_extraction", "distractor_density"],
-    "reasoning": ["negation"],
-    "ingestion": ["entity_extraction_known"]
+    "locate": ["simple_extraction", "distractor_density", "position_bias"],
+    "match": ["paraphrase", "similar_names"],
+    "reason": ["negation", "absence", "temporal_ordering", "comparison", "counting", "transitivity"],
+    "ingestion": ["entity_extraction_known", "relationship_extraction", "supersession_detection"]
 }
