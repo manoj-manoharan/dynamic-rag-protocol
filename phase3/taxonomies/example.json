@@ -2,5 +2,6 @@
     "locate": ["simple_extraction", "distractor_density", "position_bias"],
     "match": ["paraphrase", "similar_names"],
     "reason": ["negation", "absence", "temporal_ordering", "comparison", "counting", "transitivity"],
-    "ingestion": ["entity_extraction_known", "relationship_extraction", "supersession_detection"]
+    "ingestion": ["entity_extraction_known", "relationship_extraction", "supersession_detection"],
+    "load_bearing": ["surface_form", "question_form", "multi_info_extraction", "negation_in_fact", "numeric_precision", "temporal_precision", "domain_language", "minimal_pair", "instruction_adherence", "embedded_correction", "conditional_fact", "quoted_attribution"]
 }
