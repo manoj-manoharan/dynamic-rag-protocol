@@ -14,7 +14,7 @@ def generate(difficulty, trial, seed):
     project = rng.choice(projects)
 
     if difficulty == "easy":
-        budget = rng.randint(3, 12) * 100
+        budget = rng.randint(3, 9) * 100
         fact = f"{project} has a budget of ${budget}K."
         return {
             "inputs": {"facts": [fact], "question": f"What is the budget of {project}?"},
@@ -23,8 +23,8 @@ def generate(difficulty, trial, seed):
         }
 
     if difficulty == "medium":
-        old_budget = rng.randint(3, 8) * 100
-        new_budget = old_budget + rng.choice([100, 150, 200, 250])
+        old_budget = rng.randint(3, 7) * 100
+        new_budget = old_budget + rng.choice([100, 150, 200])
         fact = f"{project}'s budget was revised from ${old_budget}K to ${new_budget}K."
         return {
             "inputs": {
@@ -36,7 +36,7 @@ def generate(difficulty, trial, seed):
         }
 
     # hard: multiple numbers including percentages
-    old_budget = rng.randint(3, 8) * 100
+    old_budget = rng.randint(3, 6) * 100
     new_budget = old_budget + rng.choice([100, 150, 200])
     pct = round((new_budget - old_budget) / old_budget * 100)
     headcount = rng.randint(8, 25)

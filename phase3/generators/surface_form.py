@@ -89,11 +89,15 @@ def generate(difficulty, trial, seed):
 
     fact = _make(person, role, company, form, rng)
 
+    # Informal templates use first name only, so accept first or last name
+    parts = person.split()
+    pattern = "|".join(re.escape(p) for p in parts if len(p) > 2)
+
     return {
         "inputs": {
             "facts": [fact],
             "question": f"Who is the {role} of {company}?",
         },
         "expected": person,
-        "check": {"type": "regex", "pattern": re.escape(person)},
+        "check": {"type": "regex", "pattern": pattern},
     }
