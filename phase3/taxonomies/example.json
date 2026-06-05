@@ -1,0 +1,5 @@
+{
+    "reader_basics": ["simple_extraction", "distractor_density"],
+    "reasoning": ["negation"],
+    "ingestion": ["entity_extraction_known"]
+}
