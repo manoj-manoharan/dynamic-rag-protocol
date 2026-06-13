@@ -380,13 +380,6 @@ def orchestrate(question, kg, model_name, verbose=False):
                     f = kg.facts.get(step["factId"])
                     if f:
                         fact_map[f["id"]] = f
-            # Expand both endpoints to include context regardless of DFS direction
-            for path in all_paths:
-                if path:
-                    for endpoint in (path[0]["from"], path[-1]["to"]):
-                        for fid in kg.ent_facts.get(endpoint, []):
-                            if fid not in fact_map:
-                                fact_map[fid] = kg.facts[fid]
             facts = sorted(fact_map.values(), key=lambda f: f["ts"])
             if verbose:
                 print(f"  Path-edge facts: {len(facts)}")
