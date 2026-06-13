@@ -18,10 +18,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from generators import TESTS
 
 # ═══════════════════════════════════════════════════════════════
-# OLLAMA CLIENT
+# MODEL CLIENT (Ollama + OpenAI-compatible API)
 # ═══════════════════════════════════════════════════════════════
 
 _executor = None
+_backend = {}  # Set in main: {"type": "ollama"|"api", "url": ..., "key": ...}
 
 
 def _ollama_sync(model, prompt, system, base_url, timeout):
@@ -46,17 +47,50 @@ def _ollama_sync(model, prompt, system, base_url, timeout):
     }
 
 
-async def call_ollama(model, prompt, system, base_url, timeout=120, retries=3):
+def _api_sync(model, prompt, system, api_url, api_key, timeout):
+    payload = json.dumps({
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ],
+    }).encode()
+    req = urllib.request.Request(
+        f"{api_url}/chat/completions", data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        data = json.loads(resp.read().decode())
+    choice = data.get("choices", [{}])[0]
+    usage = data.get("usage", {})
+    return {
+        "text": choice.get("message", {}).get("content", ""),
+        "tokens_in": usage.get("prompt_tokens", 0),
+        "tokens_out": usage.get("completion_tokens", 0),
+    }
+
+
+async def call_model(model, prompt, system, timeout=120, retries=3):
     loop = asyncio.get_event_loop()
     for attempt in range(retries):
         try:
-            return await loop.run_in_executor(
-                _executor, _ollama_sync, model, prompt, system, base_url, timeout,
-            )
+            if _backend["type"] == "api":
+                return await loop.run_in_executor(
+                    _executor, _api_sync, model, prompt, system,
+                    _backend["url"], _backend["key"], timeout,
+                )
+            else:
+                return await loop.run_in_executor(
+                    _executor, _ollama_sync, model, prompt, system,
+                    _backend["url"], timeout,
+                )
         except Exception as e:
             if attempt < retries - 1:
                 wait = 2 ** attempt
-                logging.warning(f"Ollama error (attempt {attempt + 1}/{retries}): {e}. Retry in {wait}s")
+                logging.warning(f"Model error (attempt {attempt + 1}/{retries}): {e}. Retry in {wait}s")
                 await asyncio.sleep(wait)
             else:
                 raise
@@ -298,7 +332,7 @@ async def run_all(args):
             prompt, system = format_prompt(case["inputs"])
             t0 = time.monotonic()
             try:
-                resp = await call_ollama(args.model, prompt, system, args.ollama_url)
+                resp = await call_model(args.model, prompt, system)
             except Exception as e:
                 logging.error(f"SKIP {name}/{diff}/t{trial_num}: {e}")
                 progress["done"] += 1
@@ -348,7 +382,29 @@ def check_ollama(model, url):
         sys.exit(1)
 
 
+def check_api(api_url, api_key):
+    if not api_key:
+        print("API key required. Use --api-key or set OPENAI_API_KEY env var.")
+        sys.exit(1)
+    # Quick connectivity check
+    try:
+        req = urllib.request.Request(
+            f"{api_url}/models",
+            headers={"Authorization": f"Bearer {api_key}"},
+        )
+        with urllib.request.urlopen(req, timeout=10):
+            pass
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            print("API key invalid.")
+            sys.exit(1)
+        # Other errors (404 etc) are OK, endpoint might not support /models
+    except Exception:
+        pass  # Connectivity issues will surface on first real call
+
+
 def main():
+    global _backend
     p = argparse.ArgumentParser(description="Phase 3: Model Capability Profile")
     p.add_argument("--model", default="gemma2:2b")
     p.add_argument("--tests", help="Comma-separated test names")
@@ -357,8 +413,18 @@ def main():
     p.add_argument("--new-version", action="store_true")
     p.add_argument("--retry-failed", action="store_true")
     p.add_argument("--ollama-url", default="http://localhost:11434")
+    p.add_argument("--api-url", default="https://api.deepseek.com/v1",
+                    help="OpenAI-compatible API base URL")
+    p.add_argument("--api-key", default=os.environ.get("OPENAI_API_KEY", ""),
+                    help="API key (or set OPENAI_API_KEY env var)")
     p.add_argument("--verbose", "-v", action="store_true")
     args = p.parse_args()
+
+    # Determine backend
+    if args.api_key:
+        _backend = {"type": "api", "url": args.api_url, "key": args.api_key}
+    else:
+        _backend = {"type": "ollama", "url": args.ollama_url}
 
     os.makedirs("logs", exist_ok=True)
     log_file = os.path.join("logs", f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
@@ -369,11 +435,16 @@ def main():
         handlers=[logging.FileHandler(log_file), logging.StreamHandler(sys.stdout)],
     )
 
+    backend_label = f"API ({args.api_url})" if args.api_key else f"Ollama ({args.ollama_url})"
     print(f"Phase 3: Model Capability Profile")
-    print(f"Model: {args.model} | Log: {log_file}")
+    print(f"Model: {args.model} | Backend: {backend_label} | Log: {log_file}")
     print(f"Available tests: {', '.join(TESTS.keys())}\n")
 
-    check_ollama(args.model, args.ollama_url)
+    if args.api_key:
+        check_api(args.api_url, args.api_key)
+    else:
+        check_ollama(args.model, args.ollama_url)
+
     asyncio.run(run_all(args))
 
 
