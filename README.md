@@ -3,6 +3,7 @@
 Matching frontier LLM accuracy with small open-source models via deterministic orchestration and graph-structured retrieval.
 
 **Paper**: [arXiv link placeholder]
+**Code**: [https://github.com/manoj-manoharan/dynamic-rag-protocol](https://github.com/manoj-manoharan/dynamic-rag-protocol)
 
 ## Thesis
 
